@@ -1,0 +1,10 @@
+#!/bin/sh
+# A51 Server OS — runit estágio 3: desligar/reiniciar com segurança.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+echo "a51-runit3: parando servicos" > /dev/kmsg
+sv -w 10 force-stop /etc/service-native/* 2>/dev/null
+sv exit /etc/service-native/* 2>/dev/null
+sync
+umount /efs 2>/dev/null
+mount -o remount,ro / 2>/dev/null
+sync

@@ -1,0 +1,16 @@
+#!/bin/sh
+# A51 Server OS — reiniciar ou desligar com segurança (não há systemd: "reboot" comum não existe).
+#   sudo a51-reboot            reinicia (volta no Debian)
+#   sudo a51-reboot poweroff   desliga
+#   sudo a51-reboot recovery   reinicia no recovery (Debian modo teste, com temporizador de segurança)
+#   sudo a51-reboot download   reinicia no Download Mode (para o Odin)
+set -e
+[ "$(id -u)" = 0 ] || { echo "use sudo"; exit 1; }
+echo "parando serviços..."
+sv -w 15 force-stop /etc/service-native/* >/dev/null 2>&1 || true
+sync; sleep 1; sync
+case "${1:-reboot}" in
+  poweroff)          exec busybox poweroff -f ;;
+  recovery|download) exec /usr/local/sbin/a51-reboot-reason "$1" ;;   # reboot(2) RESTART2 com o motivo
+  *)                 exec busybox reboot -f ;;
+esac

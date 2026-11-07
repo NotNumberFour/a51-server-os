@@ -1,0 +1,15 @@
+#!/bin/sh
+# A51 Server OS — runit estágio 2: supervisiona os serviços (cada pasta em /etc/service-native).
+# Se um serviço cair, o runsv o reinicia sozinho.
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH
+L=/var/log/a51/boot.log
+# No boot nativo o runit não consegue abrir /dev/console (console=ram da Samsung): stdin/stdout/stderr chegam
+# FECHADOS. Aí o "exec 2>&1" dos serviços falha e o shell morre na hora. Damos a todos um destino válido.
+exec </dev/null >>/var/log/a51/services.log 2>&1
+echo "$(date '+%F %T') estagio 2 iniciado (pid $$)" >> $L
+echo "a51-runit2: runsvdir /etc/service-native" > /dev/kmsg
+mkdir -p /run/runit/supervise
+ls /etc/service-native >> $L 2>&1
+sync
+exec env - PATH=$PATH runsvdir -P /etc/service-native 'log: ...........................................................................................................'

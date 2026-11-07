@@ -1,0 +1,4 @@
+#!/bin/sh
+exec 2>&1
+[ -e /sys/class/net/wlan0 ] || { echo "sem wlan0"; sleep 5; exit 1; }
+exec wpa_supplicant -i wlan0 -D nl80211 -c /etc/wpa_supplicant/wpa_supplicant-wlan0.conf

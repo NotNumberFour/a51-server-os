@@ -1,0 +1,5 @@
+#!/bin/sh
+exec 2>&1
+sv check /etc/service-native/wpa >/dev/null || { sleep 2; exit 1; }
+# -B: primeiro plano (o runsv supervisiona); -4: só IPv4; o DNS vai para /etc/resolv.conf
+exec dhcpcd -B -4 wlan0

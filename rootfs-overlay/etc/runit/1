@@ -1,0 +1,71 @@
+#!/bin/sh
+# A51 Server OS — runit estágio 1 (boot NATIVO, sem Android): preparar o sistema.
+# O initramfs já montou /proc, /sys, /dev e criou o console USB (ttyGS0).
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+umask 022
+mkdir -p /var/log/a51
+exec </dev/null >>/var/log/a51/stage1.log 2>&1   # stdio pode chegar fechado (ver /etc/runit/2)
+log() { echo "a51-runit1: $*" > /dev/kmsg; echo "$(date '+%F %T') $*" >> /var/log/a51/boot.log; sync; }
+
+mountpoint -q /proc    || mount -t proc proc /proc
+mountpoint -q /sys     || mount -t sysfs sysfs /sys
+mountpoint -q /dev     || mount -t devtmpfs devtmpfs /dev
+mkdir -p /dev/pts /dev/shm
+mountpoint -q /dev/pts || mount -t devpts -o gid=5,mode=620,ptmxmode=000 devpts /dev/pts
+mountpoint -q /dev/shm || mount -t tmpfs -o mode=1777,nosuid,nodev tmpfs /dev/shm
+mountpoint -q /run     || mount -t tmpfs -o mode=0755,nosuid,nodev tmpfs /run
+mountpoint -q /tmp     || mount -t tmpfs -o mode=1777,nosuid,nodev tmpfs /tmp
+mkdir -p /run/sshd /run/lock /run/wpa_supplicant && chmod 0755 /run/sshd
+log "estagio 1 iniciado (kernel $(uname -r))"
+
+# Partição por nome (no Android quem cria /dev/block/by-name é o ueventd; aqui procuramos no sysfs)
+part() { for u in /sys/class/block/*/uevent; do
+           grep -qx "PARTNAME=$1" "$u" && { echo "/dev/$(sed -n 's/^DEVNAME=//p' "$u")"; return 0; }; done; return 1; }
+
+# EFS somente leitura: o driver do Wi-Fi lê o MAC em /efs/wifi/.mac.info. NUNCA montar com escrita.
+EFS=$(part efs) && mount -t ext4 -o ro,nosuid,nodev,noexec "$EFS" /efs && log "efs montada ro ($EFS)" || log "efs NAO montada"
+
+hostname a51-server
+ip link set lo up
+
+# Rede pelo cabo USB (NCM, criada no initramfs): IP fixo para manutenção mesmo sem Wi-Fi.
+# No PC: dar ao adaptador "USB NCM" o IP 10.15.19.1/24 e acessar ssh server@10.15.19.82
+# Neste kernel Samsung a interface NCM se chama ncm0 (em kernels comuns, usb0). O serviço udhcpd entrega IP ao PC.
+USBIF=""
+for i in 1 2 3 4 5 6 7 8 9 10; do for c in ncm0 usb0; do [ -e /sys/class/net/$c ] && USBIF=$c; done; [ -n "$USBIF" ] && break; sleep 1; done
+if [ -n "$USBIF" ]; then ip addr add 10.15.19.82/24 dev "$USBIF" 2>/dev/null; ip link set "$USBIF" up && log "$USBIF 10.15.19.82"; echo "$USBIF" > /run/a51-usbif
+else log "sem interface de rede USB (ncm0/usb0)"; fi
+
+# Pane por tarefa bloqueada: desligada também aqui (o initramfs já faz; ver /init).
+echo 0 > /proc/sys/kernel/hung_task_panic 2>/dev/null
+
+# CPU sempre acordada (sem Android ninguém pede suspensão, mas fica garantido) e tela apagada (AMOLED, energia).
+# Só o brilho 0 não basta neste painel: o "blank 4" (POWERDOWN) desliga o display de verdade.
+echo a51-server > /sys/power/wake_lock 2>/dev/null
+for b in /sys/class/backlight/*/brightness; do echo 0 > "$b" 2>/dev/null; done
+echo 4 > /sys/class/graphics/fb0/blank 2>/dev/null && log "painel desligado (fb0 blank)"
+
+# Bateria: limitar a carga em 85% (o mesmo controle do "Proteger bateria" do One UI). Servidor 24 h na tomada
+# a 100% acelera o desgaste e o risco de a bateria estufar.
+echo 85 > /sys/class/power_supply/battery/batt_full_capacity 2>/dev/null && log "bateria limitada a 85%"
+
+# Wi-Fi: subir a interface faz o driver scsc_wlbt carregar /vendor/etc/wifi/mx140.bin
+for i in 1 2 3 4 5 6 7 8 9 10; do [ -e /sys/class/net/wlan0 ] && break; sleep 1; done
+ip link set wlan0 up && log "wlan0 up" || log "wlan0 FALHOU"
+
+# Swap em RAM comprimida (zram, lz4/lzo): folga para os picos do render (estudio ~2 GB) sem desgastar o UFS.
+if [ -e /sys/block/zram0 ] && ! grep -q zram0 /proc/swaps; then
+  echo lzo-rle > /sys/block/zram0/comp_algorithm 2>/dev/null
+  echo 2G > /sys/block/zram0/disksize 2>/dev/null && mkswap /dev/zram0 >/dev/null && swapon -p 100 /dev/zram0 && log "zram 2G ativa"
+  echo 60 > /proc/sys/vm/swappiness
+fi
+
+touch /etc/runit/stopit && chmod 0 /etc/runit/stopit
+log "backlight: $(cat /sys/class/backlight/*/brightness 2>/dev/null | tr '\n' ' ')"
+
+# Diagnóstico: retratos de processos/serviços/kernel aos 20 s e 90 s (independente do estágio 2)
+( for t in 20 90; do sleep $([ $t = 20 ] && echo 20 || echo 70)
+    { date; ps -eo pid,ppid,stat,etime,args; echo; sv status /etc/service-native/* 2>&1; ip -br addr; } > /var/log/a51/diag-${t}s.txt 2>&1
+    dmesg > /var/log/a51/dmesg-${t}s.txt; sync
+  done ) </dev/null >/dev/null 2>&1 &
+log "estagio 1 ok"

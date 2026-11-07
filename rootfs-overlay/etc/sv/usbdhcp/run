@@ -1,0 +1,16 @@
+#!/bin/sh
+# DHCP na rede USB: o PC recebe 10.15.19.83 sozinho e acessa ssh server@10.15.19.82 pelo cabo.
+exec 2>&1
+IF=$(cat /run/a51-usbif 2>/dev/null)
+[ -n "$IF" ] || { sleep 10; exit 1; }
+cat > /run/udhcpd-usb.conf <<EOF
+start 10.15.19.83
+end 10.15.19.90
+interface $IF
+max_leases 4
+lease_file /run/udhcpd-usb.leases
+option subnet 255.255.255.0
+option lease 86400
+EOF
+touch /run/udhcpd-usb.leases
+exec /usr/bin/busybox udhcpd -f /run/udhcpd-usb.conf

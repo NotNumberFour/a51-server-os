@@ -1,0 +1,4 @@
+#!/bin/sh
+exec 2>&1
+# -d: primeiro plano; o relógio do aparelho pode estar muito errado: o chrony.conf tem "makestep 1 -1"
+exec chronyd -d

@@ -1,0 +1,122 @@
+#!/bin/busybox sh
+# A51 Server OS — /init do initramfs (primeiro processo do kernel, PID 1).
+# 1) monta o básico  2) cria o console USB de emergência  3) acha a partição userdata
+# 4) troca a raiz para o Debian em /data/debian-server/rootfs e entrega o PID 1 ao runit.
+# Qualquer falha: fica num shell de resgate no console USB (não reinicia em loop).
+
+/bin/busybox --install -s /bin
+export PATH=/bin
+mkdir -p /proc /sys /dev /mnt /newroot
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mkdir -p /dev/pts && mount -t devpts devpts /dev/pts
+
+log() { echo "a51-init: $*" > /dev/kmsg; }
+
+# O kernel Samsung dá PANE se uma tarefa ficar bloqueada > 120 s (hung_task_panic=1). Sem o Android, as threads
+# do TrustZone (tz_worker_thread) esperam para sempre pelo tzdaemon — inofensivo, mas derrubava o sistema aos
+# ~242 s. Desligamos a pane (o aviso no log continua).
+echo 0 > /proc/sys/kernel/hung_task_panic 2>/dev/null
+
+MODE=$(cat /a51-mode 2>/dev/null)
+log "initramfs A51 Server OS (modo ${MODE:-prod})"
+
+part() { for u in /sys/class/block/*/uevent; do
+           grep -qx "PARTNAME=$1" "$u" && { echo "/dev/$(sed -n 's/^DEVNAME=//p' "$u")"; return 0; }; done; return 1; }
+
+# Recado do Android para o bootloader ("boot-recovery" no início da partição misc): o "reboot recovery"
+# o grava e o recovery original o apaga ao sair. Se não for apagado, todo reinício volta ao recovery (ciclo).
+clear_bcb() {
+  M=$(part misc) || return 0
+  if [ "$(dd if="$M" bs=13 count=1 2>/dev/null)" = "boot-recovery" ]; then
+    dd if=/dev/zero of="$M" bs=32 count=1 conv=notrunc,fsync 2>/dev/null && log "BCB boot-recovery apagado ($M)"
+  fi
+}
+
+# Temporizador de segurança (só modo teste): o Debian precisa criar
+# /var/log/a51/healthy-<boot_id> em 5 min (SSH + alguém consegue entrar). Senão: reinicia -> Android.
+# O busybox do Debian é "standalone" (applets internos), então este processo continua funcionando
+# depois do switch_root, em qualquer fase em que o boot travar.
+if [ "$MODE" = test ]; then
+  for i in $(seq 1 20); do part misc >/dev/null && break; sleep 1; done
+  clear_bcb
+  BID=$(cat /proc/sys/kernel/random/boot_id)
+  ( sleep 300
+    if [ ! -f "/mnt/debian-server/rootfs/var/log/a51/healthy-$BID" ]; then
+      echo "deadman: sem healthy-$BID em 300s, reiniciando para o Android" >> /mnt/debian-server/boot-native.log 2>/dev/null
+      dmesg > /mnt/debian-server/boot-native-dmesg-deadman.txt 2>/dev/null
+      clear_bcb; sync; reboot -f
+    fi ) </dev/null >/dev/null 2>&1 &
+fi
+
+# --- console de emergência: USB serial (ACM) + rede USB (NCM) ----------------------------------
+# Igual ao init.exynos9611.usb.rc da Samsung: pastas g1/b.1/acm.0/ncm.0, a lista em
+# /sys/class/android_usb/android0/functions e o "enable". O controlador (dwc3) só liga depois que
+# o chip do conector detecta o cabo (no Android, ~12 s): por isso tentamos de novo por até 25 s.
+usb_gadget() {
+  mount -t configfs configfs /sys/kernel/config 2>/dev/null
+  G=/sys/kernel/config/usb_gadget/g1
+  A=/sys/class/android_usb/android0
+  mkdir -p "$G/strings/0x409" "$G/configs/b.1/strings/0x409" "$G/functions/acm.0" "$G/functions/ncm.0" || return 1
+  echo 0 > "$A/enable" 2>/dev/null
+  echo 0x1d6b > "$G/idVendor"            # Linux Foundation (o PC reconhece que é o Debian, não o Android)
+  echo 0x0104 > "$G/idProduct"           # Multifunction Composite Gadget
+  echo 0x0200 > "$G/bcdUSB"
+  echo "A51SERVER"     > "$G/strings/0x409/serialnumber"
+  echo "A51 Server OS" > "$G/strings/0x409/manufacturer"
+  echo "a51-server"    > "$G/strings/0x409/product"
+  echo "Conf 1"        > "$G/configs/b.1/strings/0x409/configuration"
+  echo 0x384           > "$G/configs/b.1/MaxPower"
+  ln -s "$G/functions/acm.0" "$G/configs/b.1/acm.0" 2>/dev/null
+  ln -s "$G/functions/ncm.0" "$G/configs/b.1/ncm.0" 2>/dev/null
+  echo "acm,ncm" > "$A/functions" 2>/dev/null
+  UDC=$(ls /sys/class/udc | head -n1)
+  n=0
+  while [ $n -lt 25 ]; do
+    if echo "$UDC" > "$G/UDC" 2>/dev/null; then
+      echo 1 > "$A/enable" 2>/dev/null
+      log "gadget USB ativo em $UDC apos ${n}s (ttyGS0 + ncm)"; return 0
+    fi
+    n=$((n + 1)); sleep 1
+  done
+  log "gadget USB: UDC nao aceitou em 25s"; return 1
+}
+usb_gadget || log "gadget USB falhou"
+
+LOGF=""
+rescue() {
+  log "RESGATE: $*"
+  [ -n "$LOGF" ] && { echo "RESGATE: $*" >> "$LOGF"; dmesg > "${LOGF%.log}-dmesg-resgate.txt"; sync; }
+  echo "a51-init RESGATE: $*" > /dev/ttyGS0 2>/dev/null
+  while true; do
+    if [ -e /dev/ttyGS0 ]; then setsid sh -c 'exec cttyhack sh' < /dev/ttyGS0 > /dev/ttyGS0 2>&1; fi
+    sleep 2
+  done
+}
+
+# --- partição userdata -------------------------------------------------------------------------
+part() { for u in /sys/class/block/*/uevent; do
+           grep -qx "PARTNAME=$1" "$u" && { echo "/dev/$(sed -n 's/^DEVNAME=//p' "$u")"; return 0; }; done; return 1; }
+DATA=""
+for i in $(seq 1 30); do DATA=$(part userdata) && [ -b "$DATA" ] && break; DATA=""; sleep 1; done
+[ -n "$DATA" ] || rescue "particao userdata nao encontrada"
+log "userdata = $DATA"
+
+mount -t f2fs -o noatime "$DATA" /mnt || rescue "falha ao montar $DATA"
+# Log persistente (sobrevive ao reinício): lido depois pelo Android ou pelo próprio Debian
+LOGF=/mnt/debian-server/boot-native.log
+{ echo "=== boot nativo $(date) kernel $(uname -r)"; echo "userdata=$DATA"; echo "udc=$(ls /sys/class/udc)"; ls /dev/ttyGS* 2>&1; } >> "$LOGF"
+dmesg > /mnt/debian-server/boot-native-dmesg-initramfs.txt; sync
+ROOT=/mnt/debian-server/rootfs
+[ -x "$ROOT/usr/sbin/runit" ] || rescue "runit nao encontrado em $ROOT"
+
+[ "$MODE" = test ] && echo "modo teste, boot_id=$BID, temporizador de 300s ativo" >> "$LOGF"
+
+# --- troca de raiz -----------------------------------------------------------------------------
+mount --bind "$ROOT" /newroot || rescue "bind do rootfs falhou"
+for m in proc sys dev; do mount --move "/$m" "/newroot/$m" || rescue "move /$m falhou"; done
+log "switch_root -> runit"
+echo "switch_root -> runit" >> "$LOGF"; sync
+exec switch_root /newroot /usr/sbin/runit
+rescue "switch_root falhou"

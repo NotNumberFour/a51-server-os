@@ -1,0 +1,24 @@
+#!/bin/sh
+# Salva o log do kernel no disco (sobrevive a travamentos/reinícios): 10 s nos primeiros 10 min, depois 60 s.
+# Também cria /var/log/a51/healthy-<boot_id> quando SSH escuta na porta 22 e há rede (Wi-Fi com IPv4 ou USB):
+# no modo teste, o temporizador de segurança do initramfs só NÃO reinicia se esse arquivo existir.
+exec 2>&1
+mkdir -p /var/log/a51
+BID=$(cat /proc/sys/kernel/random/boot_id)
+echo "$(date '+%F %T') bootlog iniciado boot_id=$BID" >> /var/log/a51/boot.log
+i=0
+while true; do
+  # Um arquivo por boot (não sobrescreve o boot anterior, que pode conter uma pane); guarda os 8 mais recentes
+  dmesg > /var/log/a51/dmesg.tmp && mv /var/log/a51/dmesg.tmp /var/log/a51/dmesg-$BID.txt
+  ln -sf dmesg-$BID.txt /var/log/a51/dmesg.txt
+  [ $i -eq 0 ] && ls -t /var/log/a51/dmesg-*.txt 2>/dev/null | tail -n +9 | xargs -r rm -f
+  { date; ip -br addr; sv status /etc/service-native/* 2>&1; } > /var/log/a51/status.txt
+  # "Saudável" = alguém consegue de fato entrar: SSH escutando E (Wi-Fi com IPv4 OU o PC pegou IP pelo cabo USB)
+  if [ ! -f /var/log/a51/healthy-$BID ] && grep -q ':0016 [0-9A-F:]* 0A' /proc/net/tcp /proc/net/tcp6 2>/dev/null \
+     && { ip -4 addr show wlan0 | grep -q inet || busybox dumpleases -f /run/udhcpd-usb.leases 2>/dev/null | grep -q 10.15.19; }; then
+    { date; ip -4 -br addr; } > /var/log/a51/healthy-$BID
+    echo "$(date '+%F %T') SAUDAVEL: ssh + rede" >> /var/log/a51/boot.log
+  fi
+  sync
+  i=$((i + 1)); [ $i -lt 60 ] && sleep 10 || sleep 60
+done

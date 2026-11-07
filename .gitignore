@@ -1,0 +1,16 @@
+# Never commit device images, firmware, backups or secrets
+*.img
+*.tar
+*.tar.md5
+*.zip
+*.enc4
+*.lz4
+*.cpio
+*.cpio.gz
+firmware/
+backup/
+*.env
+authorized_keys
+id_*
+*.pem
+__pycache__/
