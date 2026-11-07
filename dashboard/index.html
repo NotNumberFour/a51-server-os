@@ -250,7 +250,7 @@ async function atualizar() {
 
     if (per && per.length) {
       el('cores').innerHTML = per.map((c, i) => {
-        const big = i >= 4, v = Math.max(2, c.total), col = big ? 'var(--acc)' : 'var(--acc2)';
+        const big = i >= 4, v = Math.max(2, c.total), col = big ? '#60a5fa' : '#a78bfa';
         return `<div class="core"><div class="col"><i style="height:${v}%;background:${grad(col)}"></i></div><div class="n">${Math.round(c.total)}%</div><div class="n">${big ? 'A73' : 'A53'}</div></div>`;
       }).join('');
     }

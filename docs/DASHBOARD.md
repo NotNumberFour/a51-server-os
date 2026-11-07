@@ -6,6 +6,9 @@ A modern, read-only web dashboard for the A51 server: usage gauges, per-core CPU
 > 🇧🇷 Painel web moderno e somente leitura: uso, CPU por núcleo, temperaturas reais, bateria, rede Wi-Fi e o estado de todos os
 > serviços do runit. Consome ~55 MB de RAM e ~1% de CPU. Instruções abaixo (comandos iguais para os dois idiomas).
 
+![Dashboard](dashboard.png)
+<sub>Screenshot from the author's deployment (its app services are listed under their own group).</sub>
+
 ## How it works
 
 | Piece | What it does | Cost (measured) |

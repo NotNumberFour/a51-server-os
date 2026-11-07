@@ -9,6 +9,9 @@ nenhum Android rodando**, usando o próprio kernel da Samsung. No fim do guia o 
 - um **console root de emergência pela serial USB**, além de uma rede USB opcional
 - a tela desligada, a **carga da bateria limitada a 85%** e recuperação automática se o Wi-Fi cair
 
+![Painel do A51 Server](docs/dashboard.png)
+<sub>O celular do autor, ao vivo: 25/25 serviços no ar (incluindo um site real e seus 14 serviços), temperaturas, bateria e CPU por núcleo. Veja [docs/DASHBOARD.md](docs/DASHBOARD.md).</sub>
+
 > 🇺🇸 English version: [README.md](README.md)
 
 > **Testado em uma única configuração:** SM-A515F, bootloader **U8** (`A515FXXU8HWK1`, Android 13 / One UI 5.1).

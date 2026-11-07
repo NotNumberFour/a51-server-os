@@ -9,6 +9,9 @@ Android running**, on Samsung's own kernel. Once the guide is done the phone giv
 - an emergency **root console over USB serial**, plus an optional USB network
 - the display powered off, the **battery charge capped at 85%**, and automatic recovery from Wi-Fi drops
 
+![A51 Server dashboard](docs/dashboard.png)
+<sub>The author's phone, live: 25/25 services up (including a real website and its 14 services), temperatures, battery and per-core CPU. See [docs/DASHBOARD.md](docs/DASHBOARD.md).</sub>
+
 > 🇧🇷 Versão em português: [README.pt-BR.md](README.pt-BR.md)
 
 > **Tested on exactly one configuration:** SM-A515F, bootloader **U8** (`A515FXXU8HWK1`, Android 13 / One UI 5.1).
