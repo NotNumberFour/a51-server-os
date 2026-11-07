@@ -1,0 +1,5 @@
+#!/bin/sh
+# Painel de monitoramento (somente leitura) em http://<ip-do-celular>/
+# O busybox abre a porta 80 como root e passa a rodar como o usuário "server".
+exec 2>&1
+exec busybox httpd -f -p 80 -h /srv/a51-dash -c /etc/a51-dash-httpd.conf -u server:server

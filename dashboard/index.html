@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A51 Server · Debian nativo</title>
+<style>
+  :root {
+    --bg: #070a12; --card: rgba(18, 24, 40, .78); --line: rgba(120, 140, 190, .16); --txt: #e8edf7; --mut: #8b95ad;
+    --ok: #34d399; --warn: #fbbf24; --bad: #f87171; --acc: #60a5fa; --acc2: #a78bfa; --acc3: #22d3ee;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh; color: var(--txt); padding: 28px clamp(14px, 3vw, 40px);
+    font: 14px/1.45 Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background:
+      radial-gradient(1100px 600px at 8% -10%, rgba(96,165,250,.16), transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, rgba(167,139,250,.14), transparent 60%),
+      radial-gradient(800px 600px at 50% 120%, rgba(34,211,238,.08), transparent 60%), var(--bg);
+  }
+  body::before { content: ""; position: fixed; inset: 0; pointer-events: none; opacity: .35;
+    background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 44px 44px; mask-image: radial-gradient(ellipse at 50% 0%, #000 30%, transparent 75%); }
+  .wrap { max-width: 1500px; margin: 0 auto; position: relative; }
+
+  header { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 22px; }
+  .brand { display: flex; align-items: center; gap: 16px; }
+  .logo { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center;
+    background: linear-gradient(135deg, #2563eb, #7c3aed); box-shadow: 0 10px 30px rgba(99,102,241,.35); }
+  h1 { font-size: 24px; font-weight: 750; letter-spacing: -.2px; }
+  h1 span { background: linear-gradient(90deg, #93c5fd, #c4b5fd); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .tag { color: var(--mut); font-size: 13.5px; margin-top: 2px; }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+  .chip { font-size: 12px; color: #c7d2fe; padding: 3px 10px; border-radius: 999px; border: 1px solid rgba(165,180,252,.25); background: rgba(99,102,241,.10); }
+  .live { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); color: var(--mut); font-size: 13px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 0 rgba(52,211,153,.6); animation: pulse 2s infinite; }
+  .dot.off { background: var(--bad); animation: none; }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(52,211,153,.55); } 70% { box-shadow: 0 0 0 10px rgba(52,211,153,0); } 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); } }
+
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 16px; }
+  .kpi { position: relative; overflow: hidden; }
+  .kpi .k { color: var(--mut); font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600; }
+  .kpi .v { font-size: 32px; font-weight: 750; margin-top: 6px; letter-spacing: -.5px; }
+  .kpi .s { color: var(--mut); font-size: 12.5px; margin-top: 2px; }
+  .kpi::after { content: ""; position: absolute; right: -30px; top: -30px; width: 120px; height: 120px; border-radius: 50%; background: var(--glow, rgba(96,165,250,.12)); filter: blur(10px); }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(12, 1fr); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 20px; backdrop-filter: blur(10px);
+    box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 20px 40px rgba(0,0,0,.25); }
+  .card h2 { font-size: 12px; text-transform: uppercase; letter-spacing: 1.1px; color: var(--mut); font-weight: 650; margin-bottom: 16px; display: flex; justify-content: space-between; }
+  .card h2 em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--mut); font-weight: 500; }
+  .c4 { grid-column: span 4; } .c5 { grid-column: span 5; } .c7 { grid-column: span 7; } .c8 { grid-column: span 8; } .c12 { grid-column: span 12; }
+  @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(2, 1fr); } .c4, .c5, .c7, .c8 { grid-column: span 12; } }
+
+  .gauges { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .gauge { text-align: center; position: relative; }
+  .gauge svg { width: 116px; height: 116px; transform: rotate(-90deg); }
+  .gauge circle { fill: none; stroke-width: 10; }
+  .gauge .bgc { stroke: rgba(120,140,190,.14); }
+  .gauge .fg { stroke-linecap: round; transition: stroke-dashoffset .8s ease, stroke .8s; filter: drop-shadow(0 0 6px currentColor); }
+  .gauge .val { position: absolute; top: 40px; left: 0; right: 0; font-size: 24px; font-weight: 750; }
+  .gauge .lbl { color: var(--txt); font-size: 13px; font-weight: 600; margin-top: 6px; }
+  .gauge .ext { color: var(--mut); font-size: 12px; }
+
+  .cores { display: grid; grid-template-columns: repeat(8, 1fr); gap: 10px; align-items: end; height: 150px; }
+  .core { display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; }
+  .core .col { flex: 1; width: 100%; max-width: 36px; border-radius: 10px; background: rgba(120,140,190,.12); position: relative; overflow: hidden; }
+  .core .col i { position: absolute; bottom: 0; left: 0; right: 0; border-radius: 10px; transition: height .8s ease; }
+  .core .n { font-size: 11px; color: var(--mut); }
+  .legend { display: flex; gap: 16px; margin-top: 10px; font-size: 12px; color: var(--mut); }
+  .legend b { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+
+  .temps { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .temp { border: 1px solid var(--line); border-radius: 14px; padding: 13px 14px; background: rgba(7,10,18,.45); }
+  .temp .n { color: var(--mut); font-size: 12px; }
+  .temp .v { font-size: 26px; font-weight: 750; margin-top: 2px; }
+  .bar { height: 6px; background: rgba(120,140,190,.14); border-radius: 6px; margin-top: 9px; overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 6px; transition: width .8s ease; }
+
+  .bat { display: flex; align-items: center; gap: 18px; margin-bottom: 12px; }
+  .batshape { width: 92px; height: 44px; border: 3px solid #c7d2fe; border-radius: 10px; position: relative; padding: 4px; opacity: .95; }
+  .batshape::after { content: ""; position: absolute; right: -10px; top: 12px; width: 6px; height: 14px; background: #c7d2fe; border-radius: 0 4px 4px 0; }
+  .batshape i { display: block; height: 100%; border-radius: 5px; transition: width .8s ease; }
+  .batshape .bolt { position: absolute; inset: 0; display: grid; place-items: center; font-size: 18px; }
+  .big { font-size: 36px; font-weight: 750; letter-spacing: -.5px; }
+  .sub { color: var(--mut); font-size: 13px; }
+  .row { display: flex; justify-content: space-between; align-items: baseline; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .row span:first-child { color: var(--mut); }
+  .row b { font-weight: 650; }
+
+  .svcs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .svc { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: rgba(7,10,18,.45); font-size: 12.5px; }
+  .svc .d { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+  .svc.ok .d { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .svc.no .d { background: var(--bad); box-shadow: 0 0 8px var(--bad); }
+  .svc small { color: var(--mut); margin-left: auto; font-size: 10.5px; }
+  .grp { font-size: 11.5px; color: var(--mut); text-transform: uppercase; letter-spacing: 1px; margin: 14px 0 8px; }
+  .grp:first-child { margin-top: 0; }
+
+  .netv { display: flex; gap: 28px; margin-bottom: 10px; }
+  .netv b { font-size: 22px; font-weight: 750; display: block; }
+  .down { color: var(--acc); } .up { color: var(--acc2); }
+  .spark { width: 100%; height: 92px; display: block; }
+
+  footer { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; color: var(--mut); font-size: 12px; margin-top: 22px; }
+  footer a { color: #a5b4fc; text-decoration: none; }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="brand">
+    <div class="logo">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M10.5 18.5h3"/><path d="M9 7h6M9 10h6M9 13h4"/></svg>
+    </div>
+    <div>
+      <h1>A51 <span>Server</span></h1>
+      <div class="tag">Debian 13 nativo num Samsung Galaxy A51 · sem Android</div>
+      <div class="chips"><span class="chip">Exynos 9611</span><span class="chip">8 núcleos ARM64</span><span class="chip" id="chip-ram">RAM</span><span class="chip">runit</span><span class="chip" id="chip-host">a51-server</span></div>
+    </div>
+  </div>
+  <div class="live"><span class="dot" id="dot"></span><span id="st">conectando…</span></div>
+</header>
+
+<section class="kpis">
+  <div class="card kpi" style="--glow: rgba(52,211,153,.14)"><div class="k">Ligado há</div><div class="v" id="k-up">—</div><div class="s" id="k-up-s">sem reiniciar</div></div>
+  <div class="card kpi" style="--glow: rgba(96,165,250,.14)"><div class="k">Serviços online</div><div class="v" id="k-svc">—</div><div class="s" id="k-svc-s">supervisionados pelo runit</div></div>
+  <div class="card kpi" style="--glow: rgba(167,139,250,.14)"><div class="k">RAM livre</div><div class="v" id="k-ram">—</div><div class="s" id="k-ram-s">—</div></div>
+  <div class="card kpi" style="--glow: rgba(34,211,238,.14)"><div class="k">Site</div><div class="v" id="k-site">—</div><div class="s">servido por este celular</div></div>
+</section>
+
+<div class="grid">
+  <section class="card c7">
+    <h2>Uso do sistema</h2>
+    <div class="gauges">
+      <div class="gauge" id="g-cpu"></div><div class="gauge" id="g-mem"></div><div class="gauge" id="g-swap"></div><div class="gauge" id="g-disk"></div>
+    </div>
+  </section>
+
+  <section class="card c5">
+    <h2>CPU por núcleo <em id="load">—</em></h2>
+    <div class="cores" id="cores"></div>
+    <div class="legend"><span><b style="background:var(--acc2)"></b>A53 · econômicos 1,7 GHz</span><span><b style="background:var(--acc)"></b>A73 · desempenho 2,3 GHz</span></div>
+  </section>
+
+  <section class="card c4">
+    <h2>Temperaturas</h2>
+    <div class="temps" id="temps"></div>
+  </section>
+
+  <section class="card c4">
+    <h2>Bateria</h2>
+    <div class="bat">
+      <div class="batshape"><i id="batfill"></i><span class="bolt" id="bolt"></span></div>
+      <div><div class="big" id="batpct">—</div><div class="sub" id="batinfo">—</div></div>
+    </div>
+    <div class="row"><span>Temperatura</span><b id="battemp">—</b></div>
+    <div class="row"><span>Limite de carga (proteção)</span><b id="batlim">—</b></div>
+  </section>
+
+  <section class="card c4">
+    <h2>Rede Wi-Fi</h2>
+    <div class="netv">
+      <div><span class="sub">↓ recebendo</span><b class="down" id="rx">—</b></div>
+      <div><span class="sub">↑ enviando</span><b class="up" id="tx">—</b></div>
+    </div>
+    <svg class="spark" id="spark" viewBox="0 0 300 92" preserveAspectRatio="none"></svg>
+  </section>
+
+  <section class="card c12">
+    <h2>Serviços <em id="svc-count">—</em></h2>
+    <div id="svcs"></div>
+  </section>
+</div>
+
+<footer>
+  <span>Somente leitura · atualiza a cada 3 s · dados do kernel e do Glances</span>
+  <a href="https://github.com/NotNumberFour/a51-server-os" target="_blank" rel="noopener">github.com/NotNumberFour/a51-server-os</a>
+</footer>
+</div>
+
+<script>
+const API = `http://${location.hostname}:61208/api/4/`;
+const CIRC = 2 * Math.PI * 46;
+const hist = { rx: [], tx: [] };
+const el = id => document.getElementById(id);
+const cor = (p, a = 70, b = 90) => p >= b ? 'var(--bad)' : p >= a ? 'var(--warn)' : 'var(--ok)';
+const corTemp = t => t >= 80 ? 'var(--bad)' : t >= 65 ? 'var(--warn)' : 'var(--ok)';
+const grad = c => `linear-gradient(180deg, ${c}, ${c}99)`;
+function bytes(n) { const u = ['B','KB','MB','GB','TB']; let i = 0; while (n >= 1024 && i < 4) { n /= 1024; i++; } return n.toFixed(i ? 1 : 0).replace('.', ',') + ' ' + u[i]; }
+async function get(e) { const r = await fetch(API + e, { cache: 'no-store' }); if (!r.ok) throw new Error(e); return r.json(); }
+
+function gauge(id, pct, label, extra, color) {
+  const g = el(id);
+  if (!g.firstChild) g.innerHTML = `<svg viewBox="0 0 116 116"><circle class="bgc" cx="58" cy="58" r="46"/><circle class="fg" cx="58" cy="58" r="46" stroke-dasharray="${CIRC}" stroke-dashoffset="${CIRC}"/></svg><div class="val"></div><div class="lbl"></div><div class="ext"></div>`;
+  const p = Math.max(0, Math.min(100, pct || 0)), fg = g.querySelector('.fg'), c = color || cor(p);
+  fg.style.strokeDashoffset = CIRC * (1 - p / 100); fg.style.stroke = c; fg.style.color = c;
+  g.querySelector('.val').textContent = Math.round(p) + '%';
+  g.querySelector('.lbl').textContent = label; g.querySelector('.ext').textContent = extra || '';
+}
+
+function uptimeSeg(u) {
+  if (typeof u !== 'string') return 0;
+  let d = 0; const m = u.match(/(\d+) day/); if (m) d = +m[1];
+  const t = u.split(',').pop().trim().split(':').map(Number);
+  return d * 86400 + (t[0] || 0) * 3600 + (t[1] || 0) * 60 + (t[2] || 0);
+}
+function dur(s) { const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60); return d ? `${d}d ${h}h` : `${h}h ${m}min`; }
+
+const NOMES = { BIG: 'CPU desempenho (A73)', LITTLE: 'CPU econômica (A53)', G3D: 'GPU Mali-G72', ISP: 'Processador de imagem' };
+const ST = { Charging: 'Carregando', Discharging: 'Na bateria', Full: 'Completa', 'Not charging': 'Pausada no limite' };
+const SVC = {
+  wpa: 'Wi-Fi', dhcp: 'DHCP', ssh: 'SSH', chrony: 'Relógio (NTP)', usbcon: 'Console USB', usbdhcp: 'Rede USB',
+  bootlog: 'Logs do boot', glances: 'Glances', dash: 'Este painel', 'dash-sensores': 'Sensores', webmin: 'Webmin'
+};
+const SISTEMA = new Set(Object.keys(SVC));
+
+function spark() {
+  const n = 60, all = hist.rx.concat(hist.tx), max = Math.max(1024, ...all);
+  const pts = arr => arr.map((v, i) => [(i + (n - arr.length)) * 300 / (n - 1), 88 - v / max * 80]);
+  const area = (arr, c, id) => {
+    if (arr.length < 2) return '';
+    const p = pts(arr), d = 'M' + p.map(x => x.join(',')).join(' L');
+    return `<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c}" stop-opacity=".35"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></linearGradient></defs>
+      <path d="${d} L${p[p.length - 1][0]},92 L${p[0][0]},92 Z" fill="url(#${id})"/><path d="${d}" fill="none" stroke="${c}" stroke-width="2.2" stroke-linejoin="round"/>`;
+  };
+  el('spark').innerHTML = area(hist.rx, '#60a5fa', 'grx') + area(hist.tx, '#a78bfa', 'gtx');
+}
+
+async function atualizar() {
+  try {
+    const [cpu, per, mem, swap, load, fs, net, up, sys] = await Promise.all(
+      ['cpu', 'percpu', 'mem', 'memswap', 'load', 'fs', 'network', 'uptime', 'system'].map(e => get(e).catch(() => null)));
+    let sen = null; try { sen = await (await fetch('/sensores.json', { cache: 'no-store' })).json(); } catch (e) {}
+    el('dot').classList.remove('off'); el('st').textContent = 'online · ' + new Date().toLocaleTimeString('pt-BR');
+    if (sys) el('chip-host').textContent = sys.hostname || 'a51-server';
+
+    if (up) { const s = uptimeSeg(up); el('k-up').textContent = dur(s); }
+    if (mem) {
+      el('k-ram').textContent = bytes(mem.available); el('k-ram-s').textContent = 'de ' + bytes(mem.total) + ' · sem Android';
+      el('chip-ram').textContent = bytes(mem.total) + ' RAM';
+      gauge('g-mem', mem.percent, 'Memória', bytes(mem.total));
+    }
+    if (cpu) gauge('g-cpu', cpu.total, 'CPU', (cpu.cpucore || 8) + ' núcleos');
+    if (swap) gauge('g-swap', swap.percent, 'Swap', 'zram ' + bytes(swap.total));
+    const root = (fs || []).find(f => f.mnt_point === '/') || (fs || [])[0];
+    if (root) gauge('g-disk', root.percent, 'Disco', bytes(root.free) + ' livres');
+    if (load) el('load').textContent = 'carga ' + [load.min1, load.min5, load.min15].map(x => x.toFixed(1)).join(' · ');
+
+    if (per && per.length) {
+      el('cores').innerHTML = per.map((c, i) => {
+        const big = i >= 4, v = Math.max(2, c.total), col = big ? 'var(--acc)' : 'var(--acc2)';
+        return `<div class="core"><div class="col"><i style="height:${v}%;background:${grad(col)}"></i></div><div class="n">${Math.round(c.total)}%</div><div class="n">${big ? 'A73' : 'A53'}</div></div>`;
+      }).join('');
+    }
+
+    if (sen) {
+      el('temps').innerHTML = sen.temps.map(t => `<div class="temp"><div class="n">${NOMES[t.nome] || t.nome}</div>
+        <div class="v" style="color:${corTemp(t.c)}">${t.c}°C</div><div class="bar"><i style="width:${Math.min(100, t.c)}%;background:${corTemp(t.c)}"></i></div></div>`).join('');
+      const b = sen.bateria;
+      el('batpct').textContent = b.pct + '%'; el('batinfo').textContent = ST[b.status] || b.status;
+      el('battemp').textContent = b.c + '°C'; el('batlim').textContent = b.limite ? b.limite + '%' : 'desligado';
+      const f = el('batfill'); f.style.width = b.pct + '%'; f.style.background = b.pct < 20 ? 'var(--bad)' : b.pct < 40 ? 'var(--warn)' : 'linear-gradient(90deg,#10b981,#34d399)';
+      el('bolt').textContent = b.status === 'Charging' ? '⚡' : '';
+
+      const svcs = sen.servicos || [], ok = svcs.filter(s => s.ok).length;
+      el('k-svc').textContent = `${ok}/${svcs.length}`; el('k-svc').style.color = ok === svcs.length ? 'var(--ok)' : 'var(--warn)';
+      el('svc-count').textContent = `${ok} de ${svcs.length} rodando`;
+      const grupo = (titulo, lista) => lista.length ? `<div class="grp">${titulo}</div><div class="svcs">` + lista.map(s =>
+        `<div class="svc ${s.ok ? 'ok' : 'no'}"><span class="d"></span>${SVC[s.nome] || s.nome}</div>`).join('') + '</div>' : '';
+      el('svcs').innerHTML = grupo('Aplicações', svcs.filter(s => !SISTEMA.has(s.nome))) +
+                             grupo('Sistema', svcs.filter(s => SISTEMA.has(s.nome)));
+      el('k-site').closest('.kpi').style.display = sen.site === null ? 'none' : '';
+      el('k-site').textContent = sen.site === 200 ? 'No ar' : (sen.site ? 'HTTP ' + sen.site : '—');
+      el('k-site').style.color = sen.site === 200 ? 'var(--ok)' : 'var(--warn)';
+    }
+
+    const w = (net || []).find(n => n.interface_name === 'wlan0');
+    if (w) {
+      const rx = w.bytes_recv_rate_per_sec || 0, tx = w.bytes_sent_rate_per_sec || 0;
+      el('rx').textContent = bytes(rx) + '/s'; el('tx').textContent = bytes(tx) + '/s';
+      hist.rx.push(rx); hist.tx.push(tx); if (hist.rx.length > 60) { hist.rx.shift(); hist.tx.shift(); }
+      spark();
+    }
+  } catch (e) {
+    el('dot').classList.add('off'); el('st').textContent = 'sem conexão com o servidor';
+  }
+}
+atualizar(); setInterval(atualizar, 3000);
+</script>
+</body>
+</html>

@@ -1,0 +1,7 @@
+#!/bin/sh
+# Glances (API de métricas usada pelo painel) em http://<ip>:61208 — só na rede local.
+# A lista de processos fica desligada: no Exynos 9611 ela custava ~25% de um núcleo (sem ela: ~1%).
+exec 2>&1
+exec chpst -u server:server:aid_inet:aid_net_raw /opt/glances/bin/glances -w -B 0.0.0.0 -p 61208 \
+  -C /etc/glances/glances.conf --disable-check-update \
+  --disable-plugin processlist,processcount,alert,containers,raid,cloud,gpu,smart,irq,ports,folders,wifi,connections,diskio,npu,vms

@@ -134,6 +134,11 @@ cat /var/log/a51/boot.log                     # boot log (initramfs + runit); ke
 `chmod +x` it and `ln -s /etc/sv/myapp /etc/service-native/`. Non-root processes need **groups 3003/3004** to open sockets
 (the Android kernel has `CONFIG_ANDROID_PARANOID_NETWORK`).
 
+## Monitoring dashboard
+A modern read-only dashboard (`http://<phone-ip>/`): usage gauges, per-core CPU, real temperatures (CPU clusters, GPU),
+battery with the 85% cap, Wi-Fi traffic and every service's state. About 55 MB of RAM and ~1% CPU.
+Setup: [docs/DASHBOARD.md](docs/DASHBOARD.md).
+
 ## Limitations (stock kernel)
 
 | Missing | Why | Workaround |

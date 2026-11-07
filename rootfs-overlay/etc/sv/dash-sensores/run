@@ -1,0 +1,29 @@
+#!/bin/sh
+# Gera /srv/a51-dash/sensores.json a cada 5 s para o painel (somente leitura):
+# temperaturas e bateria (lidas do kernel), estado dos serviços (runit) e, opcionalmente, se um site responde.
+#
+# SITE_URL: endereço local do seu site (ex.: http://127.0.0.1:3000/). Vazio = o painel esconde o destaque "Site".
+SITE_URL=""
+
+exec 2>&1
+O=/srv/a51-dash/sensores.json; B=/sys/class/power_supply/battery
+i=0; SITE=null
+while true; do
+  T=""
+  for z in /sys/class/thermal/thermal_zone*; do
+    n=$(cat $z/type); case $n in BIG|LITTLE|G3D|ISP) T="$T{\"nome\":\"$n\",\"c\":$(( $(cat $z/temp) / 1000 ))},";; esac
+  done
+  S=""
+  for d in /etc/service-native/*; do
+    n=$(basename $d); st=$(sv status $d 2>/dev/null | cut -d: -f1)
+    S="$S{\"nome\":\"$n\",\"ok\":$([ "$st" = run ] && echo true || echo false)},"
+  done
+  # o site é conferido a cada 30 s
+  if [ -n "$SITE_URL" ] && [ $((i % 6)) -eq 0 ]; then
+    SITE=$(curl -s -m4 -o /dev/null -w "%{http_code}" "$SITE_URL" 2>/dev/null); SITE=${SITE:-0}
+  fi
+  printf "{\"temps\":[%s],\"bateria\":{\"pct\":%s,\"status\":\"%s\",\"c\":%s,\"limite\":%s},\"servicos\":[%s],\"site\":%s,\"ts\":%s}\n" \
+    "${T%,}" "$(cat $B/capacity)" "$(cat $B/status)" "$(( $(cat $B/temp) / 10 ))" "$(cat $B/batt_full_capacity)" \
+    "${S%,}" "$SITE" "$(date +%s)" > $O.tmp && mv $O.tmp $O
+  i=$((i + 1)); sleep 5
+done

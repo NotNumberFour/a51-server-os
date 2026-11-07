@@ -134,6 +134,11 @@ cat /var/log/a51/boot.log                     # log do boot (initramfs + runit);
 dê `chmod +x` e rode `ln -s /etc/sv/meuapp /etc/service-native/`. Processos sem root precisam dos **grupos 3003/3004** para abrir
 sockets (o kernel Android tem `CONFIG_ANDROID_PARANOID_NETWORK`).
 
+## Painel de monitoramento
+Um painel moderno e somente leitura (`http://<ip-do-celular>/`): medidores de uso, CPU por núcleo, temperaturas reais
+(núcleos da CPU, GPU), bateria com o limite de 85%, tráfego Wi-Fi e o estado de cada serviço. Usa ~55 MB de RAM e ~1% de CPU.
+Instalação: [docs/DASHBOARD.md](docs/DASHBOARD.md).
+
 ## Limitações (kernel original)
 
 | Falta | Por quê | Alternativa |
