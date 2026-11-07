@@ -168,3 +168,8 @@ Script comments are in Portuguese (the project started in Brazil). PRs that tran
 - Debian, BusyBox, runit, Magisk, Bifrost
 
 License: MIT (scripts and docs only, see [LICENSE](LICENSE)).
+
+---
+
+<p align="center"><i>We climbed onto the shoulders of giants to see an infinity of possibilities.</i><br>
+<i>Subimos nos ombros de gigantes para ver o infinito de possibilidades.</i></p>

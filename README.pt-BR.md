@@ -166,3 +166,7 @@ Rode `sudo a51-reboot download` e, no Odin, grave um tar com o **`boot.img` do M
 - Debian, BusyBox, runit, Magisk, Bifrost
 
 Licença: MIT (só os scripts e a documentação, veja [LICENSE](LICENSE)).
+
+---
+
+<p align="center"><i>Subimos nos ombros de gigantes para ver o infinito de possibilidades.</i></p>
