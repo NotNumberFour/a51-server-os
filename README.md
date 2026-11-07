@@ -171,5 +171,5 @@ License: MIT (scripts and docs only, see [LICENSE](LICENSE)).
 
 ---
 
-<p align="center"><i>We climbed onto the shoulders of giants to see an infinity of possibilities.</i><br>
-<i>Subimos nos ombros de gigantes para ver o infinito de possibilidades.</i></p>
+<p align="center"><i>We stood on the shoulders of giants to see endless possibilities.</i><br>
+<i>Subimos aos ombros de gigantes para ver infinitas possibilidades.</i></p>

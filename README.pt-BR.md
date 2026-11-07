@@ -169,4 +169,4 @@ Licença: MIT (só os scripts e a documentação, veja [LICENSE](LICENSE)).
 
 ---
 
-<p align="center"><i>Subimos nos ombros de gigantes para ver o infinito de possibilidades.</i></p>
+<p align="center"><i>Subimos aos ombros de gigantes para ver infinitas possibilidades.</i></p>
