@@ -57,8 +57,17 @@ ip link set wlan0 up && log "wlan0 up" || log "wlan0 FALHOU"
 if [ -e /sys/block/zram0 ] && ! grep -q zram0 /proc/swaps; then
   echo lzo-rle > /sys/block/zram0/comp_algorithm 2>/dev/null
   echo 2G > /sys/block/zram0/disksize 2>/dev/null && mkswap /dev/zram0 >/dev/null && swapon -p 100 /dev/zram0 && log "zram 2G ativa"
-  echo 60 > /proc/sys/vm/swappiness
 fi
+# Ajuste para zram (swap em RAM, sem custo de busca em disco):
+#  swappiness 100: manda para a zram as páginas paradas dos serviços ociosos e sobra RAM para quem trabalha;
+#  page-cluster 0: lê da zram uma página por vez (o padrão 3 lê 8 de uma vez, pensado para disco);
+#  mem_limit 1200M: a zram nunca ocupa mais que 1,2 GB de RAM real, mesmo cheia;
+#  min_free/watermark: reserva livre maior, para os picos de memória não travarem alocações.
+echo 1200M > /sys/block/zram0/mem_limit 2>/dev/null
+echo 100 > /proc/sys/vm/swappiness
+echo 0 > /proc/sys/vm/page-cluster
+echo 32768 > /proc/sys/vm/min_free_kbytes
+echo 50 > /proc/sys/vm/watermark_scale_factor
 
 touch /etc/runit/stopit && chmod 0 /etc/runit/stopit
 log "backlight: $(cat /sys/class/backlight/*/brightness 2>/dev/null | tr '\n' ' ')"
