@@ -166,7 +166,7 @@ The TrustZone threads stay in `D` state forever (they wait for Android's `tzdaem
 | `tools/mk-odin-boot-tar.py` | Odin AP tar = boot.img + **stock** vbmeta |
 | `tools/flash-*.sh` | partition writers with size/hash checks and read-back verification (boot/recovery only) |
 | `scripts/android/` | chroot phase (start/shell/setup, Magisk `service.d`), firmware/Wi-Fi import |
-| `docs/` | [lessons learned](docs/LESSONS-LEARNED.md), [hardware & kernel audit](docs/HARDWARE-AUDIT.md) |
+| `docs/` | [lessons learned](docs/LESSONS-LEARNED.md), [hardware & kernel audit](docs/HARDWARE-AUDIT.md), [self-hosted n8n guide](docs/N8N.md) |
 
 Script comments are in Portuguese (the project started in Brazil). PRs that translate them are welcome.
 

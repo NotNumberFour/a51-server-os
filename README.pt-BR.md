@@ -166,7 +166,7 @@ Rode `sudo a51-reboot download` e, no Odin, grave um tar com o **`boot.img` do M
 | `tools/mk-odin-boot-tar.py` | tar do Odin (AP) = boot.img + vbmeta **original** |
 | `tools/flash-*.sh` | gravadores de partição com checagem de tamanho/hash e conferência por leitura (só boot/recovery) |
 | `scripts/android/` | fase chroot (start/shell/setup, `service.d` do Magisk), importação do firmware e do Wi-Fi |
-| `docs/` | [lições aprendidas](docs/LESSONS-LEARNED.md), [auditoria de hardware e kernel](docs/HARDWARE-AUDIT.md) (em inglês) |
+| `docs/` | [lições aprendidas](docs/LESSONS-LEARNED.md), [auditoria de hardware e kernel](docs/HARDWARE-AUDIT.md) (em inglês), [guia do n8n self-hosted](docs/N8N.pt-BR.md) |
 
 ## Créditos
 - Issue do Magisk [#2272](https://github.com/topjohnwu/Magisk/issues/2272): "vbmeta error no sign info (A51)", a dica de corrigir só o boot
